@@ -55,6 +55,7 @@ function setMeeting() {
     .then((response) => {
         var items = response.html.body.section.nav[0].ol.li
         var result = getCurrentWTArticle(items, thisSunday)
+        if (!result) throw new Error("Watchtower TOC has unexpected structure")
         var wtlink = document.getElementById("wt_link")
         wtlink.href = "/reader.html#/api/publications/"+wt+"/"+result.href
         wtlink.textContent = "Watchtower — " + result.title
@@ -80,6 +81,7 @@ function setMeeting() {
     .then((response) => {
         var items = response.html.body.section.nav[0].ol.li
         var result = getCurrentMWBWeek(items)
+        if (!result) throw new Error("MWB TOC has unexpected structure")
         var mwblink = document.getElementById("mwb_link")
         mwblink.href = "/reader.html#/api/publications/"+mwb+"/"+result.href
         mwblink.textContent = "Life and Ministry — " + result.title
@@ -96,8 +98,8 @@ function setMeeting() {
 // Parses the start date from items[1]'s title (e.g. "May 4-10") and computes
 // the week offset from today so the link always opens to the current week.
 function getCurrentMWBWeek(items) {
+    if (!items || items.length < 2) return null;
     var fallback = {href: items[1].a['-href'], title: items[1].a['#content']};
-    if (!items || items.length < 2) return fallback;
     var firstTitle = items[1].a['#content'] || '';
     var match = firstTitle.match(/([A-Za-z]+)\s+(\d+)/);
     if (!match) return fallback;
@@ -122,13 +124,13 @@ function getCurrentMWBWeek(items) {
 // Finds the first Sunday of the study month (= current month, before the 2-month rollback),
 // then computes the week offset to determine the correct article.
 function getCurrentWTArticle(items, thisSunday) {
+    if (!items || items.length < 3) return null;
     var fallback = {href: items[2].a['-href'], title: items[2].a['#content']};
-    if (!items || items.length < 3) return fallback;
     var firstDay = new Date(thisSunday.getFullYear(), thisSunday.getMonth(), 1);
     var dow = firstDay.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
     var firstSunday = new Date(firstDay);
     firstSunday.setDate(1 + (dow === 0 ? 0 : 7 - dow));
-    var weekOffset = Math.round((thisSunday - firstSunday) / 604800000); // ms per week
+    var weekOffset = Math.floor((thisSunday - firstSunday) / 604800000); // ms per week
     var maxArticle = items.length - 3; // articles are items[2..length-2], skip cover+toc+pagenav
     var articleIndex = Math.min(Math.max(0, weekOffset), maxArticle);
     return {href: items[2 + articleIndex].a['-href'], title: items[2 + articleIndex].a['#content']};
